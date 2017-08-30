@@ -1,6 +1,6 @@
 /* Name & E-mail: Morgan Lytle : mlytl001@ucr.edu
 * Lab Section: B21
-* Assignment: Lab 9 Exercise 2
+* Assignment: Final Lab: Juke Box
 * Exercise Description:
 * I acknowledge all content contained herein, excluding template or example
 * code, is my own original work.
@@ -26,15 +26,17 @@ unsigned int song0ArraySize = 33;
 unsigned int song1ArraySize = 33;
 unsigned int song2ArraySize = 65;
 unsigned char displayFlag = 0x00; //equal to 1 when it has already been displayed to avoid unessesary refreshing
+unsigned char ioFlag = 0x00;
 unsigned int light = 0x00; // 0 = green 1 = red 2 = yellow 3 = green
 unsigned char songChoice = 0x00; //current song
 unsigned char play = 0x00;//1=play
+unsigned char pause = 0x00; //1=pause
 unsigned char songNumber = 0x02; //The number of songs included in jukebox
 								 //This has 3 songs=> song 0, song 1, song 2
 unsigned int timeVal = 0; //variable for time counter in state machines that need to hold a value for a certain amount of time, corresponds to multiples of 100
 volatile unsigned char TimerFlag = 0; // TimerISR() sets this to 1. C programmer should clear to 0.
 
-enum songStates{songInit, songWaitForPlay, songData, songPlay, songHoldNote, songWaitForRelease} songState;
+
 // Internal variables for mapping AVR's ISR to our cleaner TimerISR model.
 unsigned long _avr_timer_M = 1; // Start count from here, down to 0. Default 1 ms.
 unsigned long _avr_timer_cntcurr = 0; // Current internal count of 1ms ticks
@@ -196,34 +198,55 @@ void TimerSet(unsigned long M) {
 
 void displayString()
 {
-		if (play == 0x00){
-		if(songChoice == 0x00)
-		{
-			LCD_DisplayString(1, "Song 0: Mary Had A Little Lamb");
-		}
-		else if(songChoice == 0x01)
-		{
-			LCD_DisplayString(1, "Song 1: Giant   Steps");
-		}
-		else if(songChoice == 0x02)
-		{
-			LCD_DisplayString(1, "Song 2: Sweet   Child O' Mine");
-		}
-		}
-		else if (play == 0x01)
+		if (play == 0x00)
 		{
 			if(songChoice == 0x00)
 			{
-				LCD_DisplayString(1, "Playing:Mary Had A Little Lamb");
+				LCD_DisplayString(1, "Song 0: Mary Had A Little Lamb");
 			}
 			else if(songChoice == 0x01)
 			{
-				LCD_DisplayString(1, "Playing: Giant   Steps");
+				LCD_DisplayString(1, "Song 1: Giant   Steps");
 			}
 			else if(songChoice == 0x02)
 			{
-				LCD_DisplayString(1, "Playing: Sweet   Child O' Mine");
-			}	
+				LCD_DisplayString(1, "Song 2: Sweet   Child O' Mine");
+			}
+		}
+		else if (play == 0x01)
+		{
+			if(pause == 0x00)
+			{
+				if(songChoice == 0x00)
+				{
+					LCD_DisplayString(1, "Playing:Mary Had A Little Lamb");
+				}
+				else if(songChoice == 0x01)
+				{
+					LCD_DisplayString(1, "Playing: Giant   Steps");
+				}
+				else if(songChoice == 0x02)
+				{
+					LCD_DisplayString(1, "Playing: Sweet   Child O' Mine");
+				}
+			}
+		
+			
+			else if(pause > 0x00)
+			{
+				if(songChoice == 0x00)
+				{
+					LCD_DisplayString(1, "Paused:Mary Had A Little Lamb");
+				}
+				else if(songChoice == 0x01)
+				{
+					LCD_DisplayString(1, "Paused: Giant   Steps");
+				}
+				else if(songChoice == 0x02)
+				{
+					LCD_DisplayString(1, "Paused: Sweet   Child O' Mine");
+				}	
+			}
 		}
 }
 
@@ -244,7 +267,8 @@ void lightShow()
 	++light;
 
 }
-	
+
+enum songStates{songInit, songWaitForPlay, songWaitForRelease0, songData, songPlay, songPause, songWaitForRelease1, songHoldNote, songWaitForRelease2} songState;	
 void songSMTick()
 {
 	switch(songState) //transitions
@@ -264,6 +288,17 @@ void songSMTick()
 		{
 			PWM_on();
 			set_PWM(0.00);
+			songState = songWaitForRelease0;
+		}
+		break;
+		
+		case songWaitForRelease0:
+		if(A2)
+		{
+			songState = songWaitForRelease0;
+		}
+		else if(!A2)
+		{
 			songState = songData;
 		}
 		break;
@@ -273,14 +308,51 @@ void songSMTick()
 		break;
 		
 		case songPlay: //go to hold the current note unless A3 is pressed
-		if(!A3)
+		pause = 0x00;
+		if((!A3) && (!A2))
 		{
 			songState = songHoldNote;
 		}
-		else if(A3)
+		else if((A3) && (!A2))
 		{
 			play = 0x00;
 			songState = songWaitForPlay;
+		}
+		else if((!A3) && (A2))
+		{
+			songState = songWaitForRelease1;
+			//displayString();
+		}
+		break;
+		
+		case songWaitForRelease1:
+		if(A2)
+		{
+			songState = songWaitForRelease1;	
+		}
+		else if((!A2) && (pause == 0x00))
+		{
+			songState = songPause;
+			pause = 0x01;
+			displayString();/////////////////
+		}
+		else if((!A2) && (pause == 0x02))
+		{
+			songState = songPlay;
+			pause = 0x00;
+			displayString();
+		}
+		break;
+		
+		case songPause:
+		if(A2)
+		{
+			songState = songWaitForRelease1;
+			pause = 0x02;
+		}
+		else{
+			songState = songPause;
+		//	displayString();
 		}
 		break;
 		
@@ -299,7 +371,7 @@ void songSMTick()
 		}
 		else if((timeVal == noteVal[i]) && (i == (arraySize - 1)))
 		{
-			songState = songWaitForRelease;
+			songState = songWaitForRelease2;
 			set_PWM(0);
 		}
 		else if((timeVal == noteVal[i]) && (i < (arraySize - 1)))
@@ -319,10 +391,10 @@ void songSMTick()
 		}
 		break;
 		
-		case songWaitForRelease: //wait to release button so song only plays once per press
+		case songWaitForRelease2: //wait to release button so song only plays once per press
 		if(A2)
 		{
-			songState = songWaitForRelease;
+			songState = songWaitForRelease2;
 		}
 		else if(!A2)
 		{
@@ -386,19 +458,28 @@ void songSMTick()
 			}
 		}
 		break;
-		break;
 		
-		
+
 		case songPlay:
 		timeVal = 0x00;
 		set_PWM(cScale[noteSequence[i]]); //set the pwm to the frequency of the desired note
+		break;
+		
+		case songWaitForRelease1:
+		//displayString();
+		set_PWM(0.00);
+		break;
+		
+		case songPause: //when button is released the pause flag goes to zero so the next press can activate play
+		//displayString();
+		set_PWM(0.00);
 		break;
 		
 		case songHoldNote:
 		++timeVal; //hold note for entire duration
 		break;
 		
-		case songWaitForRelease:
+		case songWaitForRelease2:
 		set_PWM(0);
 		break;
 	}
@@ -478,7 +559,7 @@ void ioSMTick() //state machine for lcd and input
 			timeVal = 0;
 			songChoice = 0;
 			ioState = ioInstructions;
-			LCD_DisplayString(1, "A0=up A1=down   A2=Play A3=Stop."); //instructions
+			LCD_DisplayString(1, "A0=up A1=down   A2= >|| A3=Stop."); //instructions
 		}
 		break;
 		
@@ -496,6 +577,7 @@ void ioSMTick() //state machine for lcd and input
 		break;
 
 		case ioWaitForInput:
+		ioFlag = 0x00;
 		if(!A0 && !A1 && !A2) //no input
 		{
 			ioState = ioWaitForInput;
@@ -512,7 +594,7 @@ void ioSMTick() //state machine for lcd and input
 		{
 			play = 0x01;
 			ioState = ioPlay;
-			displayString();////////////////////////////////////////////////////////////////////uncomment
+			displayString();
 		}		
 		else //some other combination of inputs
 		{
@@ -547,6 +629,7 @@ void ioSMTick() //state machine for lcd and input
 		break;
 		
 		case ioPlay:
+		//ioFlag = 0x01
 		if(play == 0x00) //play is set by song sm when song is over or if stop is pressed
 		{
 			ioState = ioWaitForInput;
@@ -555,6 +638,11 @@ void ioSMTick() //state machine for lcd and input
 		else if(play == 0x01)
 		{
 			ioState = ioPlay;
+			if(ioFlag == 0x00)
+			{
+			displayString();
+			ioFlag = 0x01;
+			}
 		}
 		break;
 		
@@ -635,6 +723,7 @@ int main()
 	
 	return 0;
 }
+
 
 
 
