@@ -1,0 +1,74 @@
+CS120B Final Project: Juke Box 
+Summer 2017
+Author: Morgan Lytle
+Email: mlytl001@ucr.edu
+
+Purpose/Concept
+The purpose of this project is to create a device that plays songs that are picked by a user.
+ The user can scroll through a list of songs that have been created with C source code, and play them with the push of a button.
+ While the Juke Box is a device within itself, the purpose of building it is ultimately to package it within an alarm clock project, at a later time.
+ That device will play songs instead of just a simple buzzer pattern.
+
+Functionality/Features
+-The Juke Box begins when the power is turned on with the press of a button that is attached to the power supply. This triggers the welcome message (2 Seconds),
+ a listing of all of the songs (2 seconds each), and instructions to be displayed (5 seconds) on the LCD screen.
+
+-Instructions are…
+	1. Press A0 to scroll up in the song list.
+	2. Press A1 to scroll down in the song list.
+	3. Press A2 to play and pause the song that is displayed on the screen.
+	4. Press A3 to stop the song that is currently playing.
+
+-Once the instructions have been displayed song 0 is displayed on the screen, and the system waits for the user to pick a song.
+-If the scroll up button is pressed, then song 1 will be displayed. If scroll down is  pressed then song 0 will be displayed again.
+-If scroll up is pressed while the last song is displayed, then no change will be made.
+-If the play button is pressed then the currently displayed song will be played. The LCD will then display “Playing: Song Name”
+-Once the song starts playing the 4 LED’s blink consecutively and change when the musical note being played changes.
+-If the user plays a song and then presses stop while the song is playing, then the song will stop and the original “Song #: Song Name” will be displayed.
+-If pause is selected while the song is playing then the song stops where it is at and the display changes to “Paused: Song Name.” Once play is pressed the
+ song plays from where it paused.
+
+-The Juke Box comes preloaded with 3 songs: 
+	0: Mary Had A Little Lamb
+	1: Giant Steps
+	2: Sweet Child O’ Mine
+
+Hardware
+-4 LEDs
+-The microcontroller is the AVR ATMEGA1284, coded with Atmel Studio 7.0.
+-The songs are output through the microcontroller’s PWM port and played through a buzzer. Connected to PB6.
+-All input is through the 4 push buttons, connected to PINA
+-Comments are displayed on an LCD. Connected to PINC and PIND.
+-The system is powered by a USB power supply.
+-The prototype is built on a breadboard with connections made by solid wire.
+-A 10kohm potentiometer is used to control the brightness on the LCD screen.
+
+Software
+-The code for the Juke Box’s process is broken down into two state machines.
+ The first is responsible for all output on the LCD and all input taken in from the push buttons.
+-The second state machine controls the output from the buzzer as well as which song to play.
+-Both state machines are run with a clock period of 100ms.
+-The songs are packaged within three arrays per song. The first array is called
+ noteSequence[amount of notes – 1], and stores the order of notes.
+ The numbers that are in this array corresponds to a note in an array of frequencies that is called cScale[number of possible notes – 1].
+ This system utilizes the octave 3 and 4, which has 25 notes (including 0.0 Hz which is a rest note where no sound is played).
+ The cScale array is utilized by all of the songs since it contains all of the notes that are needed. Another array called noteVal[amount of notes – 1],
+ represents the time that each note will be held, in multiples of 100ms. 
+
+Challenges
+-The main challenge for this project was writing to the LCD screen every 100ms, which caused a flicker.
+ To fix this the message was set to display during the transition rather than the state itself,
+ resulting in the state that would either wait until the next message was meant to be displayed or to go on to the next task.
+-Another major challenge was choosing which song arrays to use based on the song choice,
+ without having excessive states. The solution that was used was adding one state called songData,
+ which has for loops that transfer the desired song data into temporary arrays which hold the current song data. 
+
+Future Additions
+-A function can be added that allows the user to create new songs by using a keypad.
+ The user will be presented with instructions from the LCD screen, and will type in numbers to fill the arrays.
+-If a song has lyrics, then the lyrics can be displayed on the LCD screen as the song plays, like a karaoke machine.
+-The hardware and portions of the software for this project will be utilized in an alarm clock that plays the songs instead of a beep sound.
+
+
+Demo link: https://www.youtube.com/watch?v=7PGFddbf910
+GitHub link: https://github.com/MorganLytle/EE-CS-120B-Final-Project-Juke-Box-Music-Player-Morgan-Lytle-Summer-2017-UCR
